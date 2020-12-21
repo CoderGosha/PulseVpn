@@ -39,7 +39,7 @@ namespace PulseVpn
             {
                 try
                 {
-                    await Task.Run(PulseAsync);
+                    PulseAsync();
                 }
                 catch (Exception e)
                 {
@@ -48,14 +48,14 @@ namespace PulseVpn
 
                 finally
                 {
-                    await Task.Delay(2000);
+                    await Task.Delay(5000);
                     // Thread.Sleep(1000);
                 }
 
             }
         }
 
-        private async Task PulseAsync()
+        private void PulseAsync()
         {
             var chech = CheckForVPNInterface();
             if (!chech)
@@ -104,14 +104,8 @@ namespace PulseVpn
 
         public bool CheckForVPNInterface()
         {
-            if (NetworkInterface.GetIsNetworkAvailable())
-            {
-                NetworkInterface[] interfaces = NetworkInterface.GetAllNetworkInterfaces();
-
-                return interfaces.Any(x => x.Description.Contains(vpnSettings.VpnName) && x.OperationalStatus == OperationalStatus.Up);
-            }
-
-            return false;
+            NetworkInterface[] interfaces = NetworkInterface.GetAllNetworkInterfaces();
+            return interfaces.Any(x => x.Description.Contains(vpnSettings.VpnName) && x.OperationalStatus == OperationalStatus.Up);
         }
 
         private static void KillProcessAndChildrens(int pid)
