@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Management;
 using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading;
@@ -15,6 +16,7 @@ namespace PulseVpn
     public class PulseService : BackgroundService
     {
         private PulseVpnSettings vpnSettings;
+        private readonly string scriptName = "vpn_route";
         public PulseService(IOptions<PulseVpnSettings> options)
         {
             if (options.Value?.VpnName == null)
@@ -63,17 +65,41 @@ namespace PulseVpn
         private void StartVpn()
         {
             Console.WriteLine($"Reconnect VPN: {vpnSettings.VpnName}...");
+            System.Diagnostics.Process process = new System.Diagnostics.Process();
+            process.StartInfo = new System.Diagnostics.ProcessStartInfo("rasdial.exe", vpnSettings.VpnName)
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                ErrorDialog = false,
+                RedirectStandardError = true,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+            };
+            process.Start();
+
+            var result = process.WaitForExit(15000);
+            if (result)
+                Console.WriteLine($"Reconnect VPN: {vpnSettings.VpnName} - OK");
+            else
+            {
+                Console.WriteLine($"Reconnect VPN: {vpnSettings.VpnName} - fail");
+                KillProcessAndChildrens(process.Id);
+                return;
+            }
+
+            Console.WriteLine($"VPN routing: {vpnSettings.VpnName}");
+
             var proc = new ProcessStartInfo()
             {
                 UseShellExecute = true,
                 WorkingDirectory = Directory.GetCurrentDirectory(),
-                FileName = Path.Combine(Directory.GetCurrentDirectory(), "vpn_route.cmd"),
+                FileName = Path.Combine(Directory.GetCurrentDirectory(), scriptName + ".cmd"),
                 WindowStyle = ProcessWindowStyle.Normal
             };
 
             Process.Start(proc).WaitForExit();
 
-            Console.WriteLine($"Reconnect VPN: {vpnSettings.VpnName} - OK");
         }
 
         public bool CheckForVPNInterface()
@@ -86,6 +112,33 @@ namespace PulseVpn
             }
 
             return false;
+        }
+
+        private static void KillProcessAndChildrens(int pid)
+        {
+            ManagementObjectSearcher processSearcher = new ManagementObjectSearcher
+              ("Select * From Win32_Process Where ParentProcessID=" + pid);
+            ManagementObjectCollection processCollection = processSearcher.Get();
+
+            // We must kill child processes first!
+            if (processCollection != null)
+            {
+                foreach (ManagementObject mo in processCollection)
+                {
+                    KillProcessAndChildrens(Convert.ToInt32(mo["ProcessID"])); //kill child processes(also kills childrens of childrens etc.)
+                }
+            }
+
+            // Then kill parents.
+            try
+            {
+                Process proc = Process.GetProcessById(pid);
+                if (!proc.HasExited) proc.Kill();
+            }
+            catch (ArgumentException)
+            {
+                // Process already exited.
+            }
         }
     }
 }
