@@ -15,9 +15,12 @@ namespace PulseVpn
     public class PulseService : BackgroundService
     {
         private PulseVpnSettings vpnSettings;
-        public PulseService()
+        public PulseService(IOptions<PulseVpnSettings> options)
         {
-        //    vpnSettings = options.Value;
+            if (options.Value?.VpnName == null)
+                throw new ArgumentNullException(nameof(options.Value.VpnName));
+
+            vpnSettings = options.Value;
         }
 
         private ManualResetEvent WorkerCancelled = new ManualResetEvent(false);
@@ -43,7 +46,7 @@ namespace PulseVpn
 
                 finally
                 {
-                    await Task.Delay(1000);
+                    await Task.Delay(2000);
                     // Thread.Sleep(1000);
                 }
 
@@ -59,6 +62,7 @@ namespace PulseVpn
 
         private void StartVpn()
         {
+            Console.WriteLine($"Reconnect VPN: {vpnSettings.VpnName}...");
             var proc = new ProcessStartInfo()
             {
                 UseShellExecute = true,
@@ -68,6 +72,8 @@ namespace PulseVpn
             };
 
             Process.Start(proc).WaitForExit();
+
+            Console.WriteLine($"Reconnect VPN: {vpnSettings.VpnName} - OK");
         }
 
         public bool CheckForVPNInterface()
@@ -76,7 +82,7 @@ namespace PulseVpn
             {
                 NetworkInterface[] interfaces = NetworkInterface.GetAllNetworkInterfaces();
 
-                return interfaces.Any(x => x.Description.Contains("engy") && x.OperationalStatus == OperationalStatus.Up);
+                return interfaces.Any(x => x.Description.Contains(vpnSettings.VpnName) && x.OperationalStatus == OperationalStatus.Up);
             }
 
             return false;

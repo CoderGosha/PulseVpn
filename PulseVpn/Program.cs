@@ -13,7 +13,7 @@ namespace PulseVpn
     {
         static async Task Main(string[] args)
         {
-            Console.WriteLine("PulseVpn  starting...");
+            Console.WriteLine("PulseVpn starting...");
             try
             {
                 CreateHostBuilder(args).Build().Run();

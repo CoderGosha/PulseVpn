@@ -11,6 +11,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="vpn_route.cmd">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
